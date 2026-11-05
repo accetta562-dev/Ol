@@ -12,6 +12,7 @@ import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
 import { pickImageDataUrl } from "@/src/lib/upload";
+import { confirmAction } from "@/src/lib/confirm";
 
 type Photo = { id: string; data_url: string; filename?: string };
 const BASE: Record<string, string> = { public: "/photos", private: "/private-photos" };
@@ -102,7 +103,7 @@ export default function AdminPhotos() {
             {list.map((p, i) => (
               <View key={p.id} style={s.cell} testID={`photo-${p.id}`}>
                 <Image source={{ uri: p.data_url }} style={s.img} contentFit="cover" />
-                <Pressable testID={`photo-del-${p.id}`} style={[s.btn, s.del]} onPress={() => run(() => api.delete(`${base}/${p.id}`), "Foto eliminata")} hitSlop={6}>
+                <Pressable testID={`photo-del-${p.id}`} style={[s.btn, s.del]} onPress={async () => (await confirmAction("Eliminare questa foto?")) && run(() => api.delete(`${base}/${p.id}`), "Foto eliminata")} hitSlop={6}>
                   <Icon name="close" size={16} color={colors.onError} />
                 </Pressable>
                 <View style={s.bar}>

@@ -9,6 +9,7 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, spacing } from "@/src/lib/typography";
 import { api } from "@/src/lib/api";
 import { prettyDate, toISODate } from "@/src/lib/format";
+import { confirmAction } from "@/src/lib/confirm";
 
 const PLATFORMS = [
   { key: "tiktok", label: "TikTok" },
@@ -31,6 +32,10 @@ export function CalendarTab() {
   const [genBusy, setGenBusy] = useState(false);
   const list = useQuery({ queryKey: ["mkt-calendar"], queryFn: async () => (await api.get("/admin/marketing/calendar")).data as any[] });
   const refresh = () => qc.invalidateQueries({ queryKey: ["mkt-calendar"] });
+  const safe = (p: Promise<any>) => p.then(refresh).catch((e: any) => toast.show(e?.response?.data?.detail || "Errore", "error"));
+  const removeItem = async (id: string) => {
+    if (await confirmAction("Eliminare questo contenuto dal calendario?")) safe(api.delete(`/admin/marketing/calendar/${id}`));
+  };
 
   const add = async (item: { title: string; platform: string; date: string; notes?: string }) => {
     await api.post("/admin/marketing/calendar", item);
@@ -93,7 +98,7 @@ export function CalendarTab() {
       ) : (
         items.map((it) => (
           <Card key={it.id} testID={`cal-${it.id}`} style={s.row}>
-            <Pressable testID={`cal-toggle-${it.id}`} onPress={() => api.put(`/admin/marketing/calendar/${it.id}`, { status: it.status === "done" ? "planned" : "done" }).then(refresh)} hitSlop={6}>
+            <Pressable testID={`cal-toggle-${it.id}`} onPress={() => safe(api.put(`/admin/marketing/calendar/${it.id}`, { status: it.status === "done" ? "planned" : "done" }))} hitSlop={6}>
               <Icon name={it.status === "done" ? "check-circle" : "circle-outline"} size={22} color={it.status === "done" ? colors.success : colors.muted} />
             </Pressable>
             <View style={{ flex: 1 }}>
@@ -101,7 +106,7 @@ export function CalendarTab() {
               <Text style={s.meta}>{prettyDate(it.date)} · {it.platform}</Text>
               {it.notes ? <Text style={s.notes} numberOfLines={3}>{it.notes}</Text> : null}
             </View>
-            <Pressable testID={`cal-del-${it.id}`} onPress={() => api.delete(`/admin/marketing/calendar/${it.id}`).then(refresh)} hitSlop={6}>
+            <Pressable testID={`cal-del-${it.id}`} onPress={() => removeItem(it.id)} hitSlop={6}>
               <Icon name="trash-can-outline" size={18} color={colors.error} />
             </Pressable>
           </Card>

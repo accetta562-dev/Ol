@@ -12,6 +12,7 @@ import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
 import { downloadAuthedFile, uploadAuthedFile } from "@/src/lib/adminFiles";
+import { confirmAction } from "@/src/lib/confirm";
 
 type Itin = {
   id?: string; title: string; subtitle?: string; days: number; theme?: string; preview_text?: string;
@@ -118,7 +119,7 @@ export default function AdminItineraries() {
                   <Act icon="file-remove-outline" label="Togli PDF" testID={`itin-rmpdf-${it.id}`} onPress={() => act(() => api.delete(`/admin/itineraries/${it.id}/pdf`), "PDF rimosso")} c={colors.warning} s={s} />
                 </>
               ) : null}
-              <Act icon="trash-can-outline" label="" testID={`itin-del-${it.id}`} onPress={() => act(() => api.delete(`/admin/itineraries/${it.id}`), "Eliminato")} c={colors.error} s={s} />
+              <Act icon="trash-can-outline" label="" testID={`itin-del-${it.id}`} onPress={async () => (await confirmAction(`Eliminare "${it.title}"?`)) && act(() => api.delete(`/admin/itineraries/${it.id}`), "Eliminato")} c={colors.error} s={s} />
             </View>
           </Card>
         ))}

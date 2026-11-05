@@ -7,6 +7,7 @@ import { Icon, IconName } from "@/src/components/Icon";
 import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { api, streamCarmelo } from "@/src/lib/api";
+import { MarkdownText } from "@/src/components/MarkdownText";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
@@ -60,8 +61,8 @@ export function ChatTab({ sessionId, model }: { sessionId: string; model: string
         {messages.length === 0 ? (
           <View style={s.intro}>
             <View style={s.avatar}><Icon name="robot-happy" size={34} color={colors.onBrandPrimary} /></View>
-            <Text style={s.introTitle}>{t("ai_itinerary.title")}</Text>
-            <Text style={s.introDesc}>{t("ai_itinerary.description")}</Text>
+            <Text style={s.introTitle}>Ciao Matteo, sono Carmelo</Text>
+            <Text style={s.introDesc}>Chiedimi consigli per i tuoi ospiti, itinerari, ristoranti o eventi. Le risposte restano salvate in questa conversazione.</Text>
             <View style={s.suggestions}>
               {suggestions.map((sg) => (
                 <Pressable key={sg.label} testID={`suggest-${sg.icon}`} style={s.suggestChip} onPress={() => send(sg.prompt)}>
@@ -77,8 +78,10 @@ export function ChatTab({ sessionId, model }: { sessionId: string; model: string
               <View style={[s.bubble, m.role === "user" ? s.userBubble : s.aiBubble]}>
                 {m.content === "" && busy ? (
                   <ActivityIndicator color={colors.brandPrimary} size="small" />
+                ) : m.role === "assistant" ? (
+                  <MarkdownText text={m.content} />
                 ) : (
-                  <Text selectable style={[s.bubbleTxt, { color: m.role === "user" ? colors.onBrandPrimary : colors.onSurface }]}>{m.content}</Text>
+                  <Text selectable style={[s.bubbleTxt, { color: colors.onBrandPrimary }]}>{m.content}</Text>
                 )}
               </View>
             </Animated.View>

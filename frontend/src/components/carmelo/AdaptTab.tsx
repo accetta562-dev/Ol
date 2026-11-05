@@ -8,6 +8,7 @@ import { fonts, spacing } from "@/src/lib/typography";
 import { streamCarmelo } from "@/src/lib/api";
 import { postAuthedFile, uploadAuthedFile } from "@/src/lib/adminFiles";
 import { useAuth } from "@/src/lib/auth";
+import { MarkdownText } from "@/src/components/MarkdownText";
 
 const DOCS = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
 
@@ -71,7 +72,7 @@ export function AdaptTab({ sessionId, model }: { sessionId: string; model: strin
       </Card>
       {result ? (
         <Card style={{ gap: spacing.sm }} testID="adapt-result">
-          <Text selectable style={s.body}>{result}</Text>
+          <MarkdownText text={result} />
           {!busy ? <Button testID="adapt-pdf" label="Scarica PDF" icon="file-pdf-box" variant="olive" onPress={pdf} /> : null}
         </Card>
       ) : null}

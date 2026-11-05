@@ -9,6 +9,7 @@ import { api, streamCarmelo } from "@/src/lib/api";
 import { postAuthedFile } from "@/src/lib/adminFiles";
 import { useAuth } from "@/src/lib/auth";
 import { StructuredView } from "./StructuredView";
+import { MarkdownText } from "@/src/components/MarkdownText";
 
 // Generates a full itinerary with Carmelo: free text (streamed) or day-by-day schema.
 export function ItineraryTab({ sessionId, model }: { sessionId: string; model: string }) {
@@ -83,7 +84,7 @@ export function ItineraryTab({ sessionId, model }: { sessionId: string; model: s
 
       {mode === "text" && text ? (
         <Card style={{ gap: spacing.sm }} testID="ci-result">
-          <Text selectable style={s.body}>{text}</Text>
+          <MarkdownText text={text} />
           {!busy ? <Button testID="ci-pdf" label="Scarica PDF" icon="file-pdf-box" variant="olive" onPress={pdf} /> : null}
         </Card>
       ) : null}

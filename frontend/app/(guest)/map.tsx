@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, Pressable, ScrollView, Modal, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -49,7 +49,7 @@ export default function MapScreen() {
   const filtered = useMemo(() => (cat === "all" ? all : all.filter((p) => p.category === cat)), [all, cat]);
   const selectedPois = useMemo(() => all.filter((p) => selected.includes(p.id)), [all, selected]);
 
-  const tintFor = (category: string) => (CAT_TINT[category] ?? CAT_TINT.art)(colors);
+  const tintFor = useCallback((category: string) => (CAT_TINT[category] ?? CAT_TINT.art)(colors), [colors]);
 
   const onPressPoi = (p: Poi) => {
     if (!unlocked) {

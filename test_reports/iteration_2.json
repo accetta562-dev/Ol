@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 2 tested the new features end to end on a 390x844 viewport. Backend: 27 pytest tests, 25 pass. Frontend: every requested flow works except one. What passed: Carmelo endpoints return 401 without a token; Carmelo moved to /admin/carmelo and /itineraries now shows 'Unmatched Route'. The Leaflet map shows 114 markers: locked, a click shows a toast; unlocked with MATTEO26, a click opens the detail sheet (add, directions). The admin map has the same 114 markers and a click opens the POI edit sheet. POI photo upload goes to object storage and the image shows in /places and /place/[id] (reverted afterwards). The place-add-itinerary toggle works. Visits are tracked once per page load and the stats counter goes up. Guest/host question threads work both ways. Suggested itinerary CRUD works, including PDF upload, admin download, guest download with the code, PDF removal and delete. Admin photos: upload, left/right reorder, move to the private gallery. Fees save; a custom fee shows up in the booking quote. Discount live validation works. The GB checklist persists, the sitemap opens, the description generator works (1 AI call). Marketing tabs render and calendar CRUD works. Carmelo tabs, model chips, chat (1 AI call) and reset work. An invalid stored token is cleared and the user is sent to /admin/login. Main bug: typing the unlock code MATTEO26 into the booking discount field makes POST /api/quote return 500.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/quote (and POST /api/bookings, which uses the same calculate_quote)", "issue": "Returns 500 with TypeError: float * NoneType at server.py ~line 1158. calculate_quote finds discount codes without filtering out type='ai_access', so MATTEO26 (percent=None) is used as a discount. A guest who types their unlock code into the booking discount field gets a broken quote and possibly can't book. Fix: add a 'type' filter ({'$in': ['discount', None]} / $ne 'ai_access') to the find_one query, and check that dc.get('percent') is set.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/admin/uploads", "issue": "Invalid base64 returns 500 (binascii.Error not caught). Wrap base64.b64decode in try/except and return 400."},
+      {"endpoint": "GET /api/files/{path}", "issue": "Exceptions from object_storage.get_object (upstream 404 or network error) are not caught, so the endpoint returns 500 instead of 404/502."},
+      {"endpoint": "POST /api/admin/google-business/description", "issue": "The generated IT description was 765 characters, over Google's 750 limit (the UI title says max 750). Validate or truncate on the server, or ask the model again."},
+      {"endpoint": "server.py", "issue": "class ItineraryIn is defined twice (line ~355 for /ai/itinerary and line ~2392 for /admin/itineraries). The second shadows the first, which is error-prone; rename one of them (e.g. SuggestedItineraryIn)."},
+      {"endpoint": "POST /api/admin/itineraries/{id}/upload-pdf", "issue": "put_object is not wrapped in try/except, so a storage failure becomes a 500 (the image upload endpoint does wrap it and returns 502)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Booking page discount field", "issue": "Typing MATTEO26 shows '✗ Codice non valido' while /api/quote fails with 500, so the quote can't load (backend root cause above).", "selector": "[data-testid=discount-status]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Map detail sheet / Place detail", "issues": ["The i18n 'directions' string has a literal arrow ('→ Directions' / '→ Indicazioni') next to the directions icon, so there are two arrows. On the map sheet the label wraps onto 2 lines."]},
+      {"screen": "Admin Carmelo chat", "issues": ["Assistant replies show raw markdown (**bold**, *italic*); render the markdown or strip it.", "The empty state reuses the guest text ('Once your booking is approved, you will receive a confirmation code...'), which makes no sense for the admin."]},
+      {"screen": "Admin delete actions", "issues": ["Deleting a photo (photo-del), an itinerary (itin-del), a custom fee (cfee-del) or a calendar item happens straight away with no confirmation. Photo deletion is risky because it is real data."]},
+      {"screen": "Guest Itinerario map", "issues": ["tintFor is recreated on every render and is a dependency of the PoiMap markers effect, so all 114 markers are cleared and re-added on every keystroke in the unlock/name fields. Memoize it with useCallback.", "Seen once: the map area was blank grey right after navigating from an admin session; it rendered fine on retry (not reproduced)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter2_features.py", "/app/test_reports/pytest/pytest_iter2.xml"],
+  "action_items": [
+    "HIGH: in calculate_quote (server.py ~1153), exclude ai_access codes and codes without a percent, so POST /api/quote and /api/bookings with MATTEO26 return 200 with no discount.",
+    "Return 400 for invalid base64 in /api/admin/uploads; catch storage errors in /api/files/{path} (404/502) and in the itinerary upload-pdf endpoint.",
+    "Enforce the 750-character limit on the GB description output.",
+    "Rename the duplicate ItineraryIn pydantic model.",
+    "Remove '→ ' from the directions i18n strings (all 5 locales); render markdown in Carmelo chat; use admin-specific empty-state text in Carmelo; add delete confirmations; wrap tintFor in useCallback in map.tsx.",
+    "Calendar toggle/delete in CalendarTab call api.put/delete(...).then(refresh) with no catch; add error toasts."
+  ],
+  "critical_code_review_comments": [
+    "Photos are still stored as base64 data_url in MongoDB (/photos, /private-photos), while POI images and itinerary PDFs use object storage. Large galleries will bloat documents and responses.",
+    "Uploaded files have no delete endpoint (db.files.is_deleted is never set). Orphaned uploads accumulate when a POI image is changed.",
+    "GET /api/guest-questions/{id} is public and keyed only by a UUID. That is acceptable, but the response includes the guest's name; there is no rate limit on public reply posts, which trigger WhatsApp notifications (spam vector).",
+    "server.py is 5,474 lines; split it into routers (carmelo, marketing, gb, pois, bookings).",
+    "The legacy tests/conftest.py still falls back to the old hardcoded URL; the legacy test_backend_api.py changes real settings (I did not run it)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter2_features.py"],
+  "success_rate": {"backend": "93% (25/27)", "frontend": "~95% (all requested flows work; booking quote with MATTEO26 is broken)"},
+  "test_credentials": "Admin Matteo / D5230; unlock code MATTEO26 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None left behind. Everything I created was deleted by id or reverted: 2 POI image_url edits (reset to null), 3 guest questions, TEST itineraries, custom fees, the discount code TESTUI15, calendar items, the GB guide step, and 1 photo. Not removable: a few TEST_ visit records in db.visits and two 1x1 px PNG uploads in db.files/object storage (no delete endpoint exists). dc-purge-expired was NOT clicked because it deletes real data; it needs a manual check.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && EXPO_PUBLIC_BACKEND_URL=<url> pytest tests/test_iter2_features.py (pytest.ini adds xdist). The expected failures until fixed are test_upload_bad_base64 and test_quote_with_ai_access_code_no_500. In the frontend, the admin modal sheets slide in; wait about 1.5 s before clicking their buttons. The admin token is in localStorage under 'traap_admin_token' (JSON string). Overlapping map markers mean a clicked marker can open a different, nearby POI; use dispatch_event('click') on [data-testid=marker-<id>]. The Marketing library is empty, so the 'Immagine IA' / 'Foto reali' attach actions were not tested (they need an AI-generated item). AI usage this run: 1 Carmelo chat, 1 GB description (IT).",
+  "rca of the issue": "Quote 500: calculate_quote runs db.discount_codes.find_one({'code': X, 'active': True}) with no type filter. The ai_access code MATTEO26 has percent=None, so subtotal * None raises a TypeError. Reproduce: POST /api/quote {check_in:'2027-05-10', check_out:'2027-05-13', guests:2, guest_name:'x', guest_email:'x@x.it', discount_code:'MATTEO26'} returns 500. Fix: filter type != 'ai_access' (matching validate_code) and check that percent is set."
+}

@@ -8,6 +8,7 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, spacing } from "@/src/lib/typography";
 import { api } from "@/src/lib/api";
 import { euro } from "@/src/lib/format";
+import { confirmAction } from "@/src/lib/confirm";
 
 const FIELDS: { key: string; label: string; icon: any }[] = [
   { key: "base_price_per_night", label: "Prezzo base sito / notte (€)", icon: "cash" },
@@ -102,7 +103,7 @@ export function CustomFeesCard() {
         <View key={f.id} style={s.row} testID={`cfee-${f.id}`}>
           <Text style={s.name}>{f.name}</Text>
           <Text style={s.val}>{euro(f.amount)} {f.mode === "per_night" ? "/ notte" : "/ soggiorno"}</Text>
-          <Pressable testID={`cfee-del-${f.id}`} onPress={() => run(() => api.delete(`/custom-fees/${f.id}`), "Eliminato")} hitSlop={6}>
+          <Pressable testID={`cfee-del-${f.id}`} onPress={async () => (await confirmAction(`Eliminare "${f.name}"?`)) && run(() => api.delete(`/custom-fees/${f.id}`), "Eliminato")} hitSlop={6}>
             <Icon name="trash-can-outline" size={18} color={colors.error} />
           </Pressable>
         </View>

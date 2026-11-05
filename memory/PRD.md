@@ -1,28 +1,32 @@
-# PRD — Appartamento Matteo (Okok clone)
+# PRD — Appartamento Matteo (clone of github.com/ori740tttttt/Okokg)
 
 ## Problem statement
-Clonare esattamente il repo GitHub accetta091/Okok (app turistica siciliana, vacation rental "Appartamento Matteo" a Trappeto) e completare le funzioni mancanti richieste dall'utente.
+Clone exactly the repo Okokg (tourist guide + admin for vacation rental "Appartamento Matteo", Trappeto, Sicily), make it run here; then: interactive Sicily map with all POIs (admin + public Itinerario); then "add all missing features" found in code analysis.
 
 ## Architecture
-- Backend: FastAPI + MongoDB (motor). AI "Carmelo" via emergentintegrations (EMERGENT_LLM_KEY).
-- Frontend: Expo Router (React Native). Tabs ospite: Home, Luoghi, Itinerario, Info. Admin: dashboard + moduli.
-- Auth: JWT admin (Matteo / D5230).
+- Backend: FastAPI + MongoDB (motor), Emergent LLM key (Carmelo / marketing / GB), Emergent Object Storage (POI images, itinerary PDFs) via backend/object_storage.py.
+- Frontend: Expo Router (React Native + web). Guest tabs: Home, Luoghi, Itinerario (map), Info. Admin dashboard modules.
+- Auth: JWT admin (Matteo / D5230). Unlock code MATTEO26 (ai_access).
 
 ## Implemented
-- Clone completo funzionante (114 POI seed, gallerie, prezzi, prenotazioni, Carmelo IA).
-- Admin dashboard raggruppata: Prenotazioni, Prenotazione manuale, Statistiche, Contabilità, Prezzi, Costi&tariffe, Codici sconto, Foto, Mappa Interattiva, Cucina, Domande ospiti, FAQ, Marketing AI, Google Business, WhatsApp.
-- Tab pubblico "Itinerario IA" (Carmelo) rimosso dal pubblico (accessibile solo admin) per risparmiare chiavi LLM.
-- Guest: mappa/itinerario con sblocco codice, POI cliccabili con scheda (prezzo/orari/durata/sconti/note/coordinate) + Indicazioni (Google Maps) + Aggiungi all'itinerario + PDF. Store itinerario condiviso + widget flottante "Il mio itinerario". Spiagge incluse nei POI.
-- Admin "Mappa Interattiva": CRUD POI completo (nome, coordinate, comune, categoria, descrizione, prezzo, orari, durata, sconti, link biglietti/maps/foto) + Import/Export Word, PDF compilabile, CSV, Template.
-- Sezione omaggio in prenotazione (portachiavi souvenir + itinerario digitale).
-- Calendario Home: popup festa al tocco con nome, durata e curiosità verificata.
-- Feste & Sagre: elenco verificato PA/TP con durata + curiosità.
-- Info: telefono +39 388 161 1514 (+ WhatsApp), CIN IT082074C2NA6HPQMB, CIR 19082074C252260.
+- 2026-11 Clone running (114 POIs seeded, galleries, prices, bookings). MATTEO26 created; FAQ drafts seeded (58 questions, no answers, unpublished).
+- 2026-11 Interactive Leaflet/OSM Sicily map (web) + react-native-maps (native) in guest Itinerario and admin Mappa Interattiva (tap pin → edit).
+- 2026-11 Missing features:
+  - Carmelo endpoints admin-only; Carmelo screen at /admin/carmelo (chat w/ history + model choice, full itinerary text/schema + patch + PDF, adapt external file).
+  - Visit tracking (/track/visit) → stats.
+  - POI photo upload to object storage (/admin/uploads, /files/{path}); itinerary PDFs in object storage.
+  - Guest ↔ host question threads (Info "Le mie domande", admin "Rispondi").
+  - Add-to-itinerary on place detail; guest i18n for Itinerario/Info.
+  - Admin "Itinerari pronti" library (CRUD + PDF) shown to guests as "Itinerari consigliati".
+  - Photos: public/private galleries, reorder, promote/demote.
+  - Costi & tariffe: base fees (/fees) + custom extra fees (in quote).
+  - Booking live discount validation; purge expired codes.
+  - Google Business: checklist guide, sitemap link, description/review-request/Q&A generators.
+  - Marketing: video scripts, editorial calendar (+AI 30-day plan), strategy (background job), coach chat/audit/structured GBP post (multi-model), AI image + attach real photos to library items.
+  - Fixes: quote 500 with ai_access codes, duplicate ItineraryIn model, upload/file error handling, 750-char GB description limit, delete confirmations, markdown in AI answers.
 
-## Credentials
-- Admin: Matteo / D5230
-- Codice sblocco itinerario di test (ai_access): MATTEO26
-
-## Backlog / next
-- P1: schede POI con foto reali (upload immagini POI da admin).
-- P2: rispondere alle domande ospiti in-app (thread).
+## Backlog
+- P1: move public/private gallery photos from base64-in-Mongo to object storage; delete endpoint for orphan uploads.
+- P1: Matteo must write answers to the 58 seeded FAQ drafts and publish them.
+- P2: rate limit public guest replies; split server.py into routers; native Android Google Maps key for store builds.
+- P2: real Google Business publishing (needs Google OAuth) — today texts are copy/paste.

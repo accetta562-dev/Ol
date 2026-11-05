@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Card, Field, Button, SectionTitle, ChipRow, useToast } from "@/src/components/ui";
 import { JsonView } from "@/src/components/JsonView";
+import { MarkdownText } from "@/src/components/MarkdownText";
 import { makeStyles } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { api } from "@/src/lib/api";
@@ -93,7 +94,7 @@ export function CoachTab() {
             {h.results.map((r) => (
               <View key={r.model} style={s.answer}>
                 <Text style={s.model}>{r.label || r.model}</Text>
-                <Text selectable style={s.txt}>{r.answer}</Text>
+                <MarkdownText text={r.answer || r.error || ""} />
               </View>
             ))}
           </View>

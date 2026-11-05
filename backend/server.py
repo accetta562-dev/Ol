@@ -1152,9 +1152,9 @@ async def calculate_quote(check_in: str, check_out: str, guests: int,
     if discount_code:
         today = now_utc().date().isoformat()
         dc = await db.discount_codes.find_one(
-            {"code": discount_code.upper(), "active": True}, {"_id": 0}
+            {"code": discount_code.upper(), "active": True, "type": {"$ne": "ai_access"}}, {"_id": 0}
         )
-        if dc and dc["valid_from"] <= today <= dc["valid_to"]:
+        if dc and dc.get("percent") and dc["valid_from"] <= today <= dc["valid_to"]:
             discount_amount = round(subtotal * dc["percent"] / 100.0, 2)
             discount_info = {"code": dc["code"], "percent": dc["percent"]}
 
@@ -2389,7 +2389,7 @@ class GuestQuestionPromoteIn(BaseModel):
     publish: Optional[bool] = True
 
 
-class ItineraryIn(BaseModel):
+class SuggestedItineraryIn(BaseModel):
     title: str
     subtitle: Optional[str] = ""
     days: int = 3
@@ -2770,7 +2770,7 @@ async def _unique_slug(base: str, exclude_id: Optional[str] = None) -> str:
 
 
 @api.post("/admin/itineraries")
-async def admin_create_itinerary(body: ItineraryIn,
+async def admin_create_itinerary(body: SuggestedItineraryIn,
                                   _: str = Depends(get_current_admin)):
     if body.visibility not in ("public", "preview", "code_only"):
         raise HTTPException(400, "Visibility non valida")
@@ -2801,7 +2801,7 @@ async def admin_create_itinerary(body: ItineraryIn,
 
 
 @api.put("/admin/itineraries/{itin_id}")
-async def admin_update_itinerary(itin_id: str, body: ItineraryIn,
+async def admin_update_itinerary(itin_id: str, body: SuggestedItineraryIn,
                                   _: str = Depends(get_current_admin)):
     existing = await db.carmelo_itineraries.find_one({"id": itin_id})
     if not existing:
@@ -2874,7 +2874,11 @@ async def admin_upload_itinerary_pdf(itin_id: str,
         raise HTTPException(400, "File non riconosciuto come PDF valido")
 
     path = f"{object_storage.APP_NAME}/itineraries/{itin_id}-{uuid.uuid4().hex[:8]}.pdf"
-    res = await asyncio.to_thread(object_storage.put_object, path, content, "application/pdf")
+    try:
+        res = await asyncio.to_thread(object_storage.put_object, path, content, "application/pdf")
+    except Exception as e:
+        logger.exception("PDF upload failed: %s", e)
+        raise HTTPException(502, "Caricamento non riuscito, riprova")
     new_filename = f"{itin_id}.pdf"
     await db.carmelo_itineraries.update_one(
         {"id": itin_id},
@@ -4951,6 +4955,14 @@ async def gb_generate_description(body: GBDescriptionIn, _: str = Depends(get_cu
     except Exception as e:
         logger.exception("GB description error: %s", e)
         raise HTTPException(status_code=502, detail=f"Errore generazione descrizione: {str(e)[:160]}")
+    for v in (data or {}).values():
+        if isinstance(v, dict) and isinstance(v.get("description"), str):
+            d = v["description"].strip()
+            if len(d) > 750:
+                cut = d[:750]
+                d = cut[: max(cut.rfind(". "), cut.rfind("! "), 600) + 1].strip()
+            v["description"] = d
+            v["char_count"] = len(d)
     return {"languages": langs, "descriptions": data, "generated_at": now_utc().isoformat()}
 
 
@@ -5369,7 +5381,10 @@ async def admin_upload_image(body: PhotoIn, _: str = Depends(get_current_admin))
     mime = header[5:].split(";")[0] or "image/jpeg"
     if not mime.startswith("image/"):
         raise HTTPException(status_code=400, detail="Carica un'immagine")
-    data = base64.b64decode(b64)
+    try:
+        data = base64.b64decode(b64, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Immagine non valida")
     if len(data) > UPLOAD_MAX_BYTES:
         raise HTTPException(status_code=400, detail="Immagine troppo grande (max 10 MB)")
     ext = mime.split("/")[-1].replace("jpeg", "jpg")
@@ -5396,7 +5411,11 @@ async def serve_file(path: str):
     rec = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
     if not rec:
         raise HTTPException(status_code=404, detail="File non trovato")
-    data, ct = await asyncio.to_thread(object_storage.get_object, path)
+    try:
+        data, ct = await asyncio.to_thread(object_storage.get_object, path)
+    except Exception as e:
+        logger.exception("File fetch failed: %s", e)
+        raise HTTPException(status_code=502, detail="File temporaneamente non disponibile")
     return Response(content=data, media_type=rec.get("content_type") or ct,
                     headers={"Cache-Control": "public, max-age=31536000"})
 
