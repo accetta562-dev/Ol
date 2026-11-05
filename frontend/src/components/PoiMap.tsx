@@ -20,10 +20,10 @@ export function PoiMap({
       testID="poi-map"
       style={StyleSheet.absoluteFill}
       initialRegion={{
-        latitude: 38.07,
-        longitude: 12.98,
-        latitudeDelta: 0.8,
-        longitudeDelta: 0.8,
+        latitude: 37.55,
+        longitude: 14.0,
+        latitudeDelta: 2.4,
+        longitudeDelta: 3.6,
       }}
     >
       {pois.map((p) => (

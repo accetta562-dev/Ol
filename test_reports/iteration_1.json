@@ -1,0 +1,43 @@
+{
+  "summary": "Ran a full-stack smoke test on the fresh clone of Appartamento Matteo (FastAPI plus Expo web, viewport 390x844). Backend: 42 pytest tests, 37 passed. All 5 failures have one cause: the itinerary unlock code MATTEO26 is missing from the cloned database (the discount_codes collection is empty), so POST /api/verify-code and POST /api/itinerary/pdf return 403 for it. These pass: /api/pois (114 POIs, no _id), admin login with Matteo/D5230, admin GETs (bookings, prices, stats, faqs, discount-codes, accounting and others), quote, booking creation and its phone validation, auth guards. Frontend: these work: Home, the festival popup (shown when you click a festival date in the calendar; its 'Tutte le feste' button goes to /festivals), the Luoghi list (114, search), POI detail with the Indicazioni button, adding POIs from the list, the floating 'Il mio itinerario' button with a count, unlocking and downloading the PDF (tested with a temporary ai_access code, since deleted), the Info phone and CIN/CIR, the booking page gift section ('In omaggio'), admin login and all 16 dashboard modules (no API 4xx/5xx, no page errors). Unlocking with MATTEO26 in the UI fails with 'Codice non valido o scaduto.'",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/verify-code, POST /api/itinerary/pdf", "issue": "MATTEO26 is rejected with 403 because no ai_access code exists in db.discount_codes (empty after the clone). The code is not seeded anywhere in server.py; it only appears in PRD.md and test_credentials.md.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/faqs, /api/admin/faqs", "issue": "The FAQ collection is empty, so the Info tab shows 'Nessuna FAQ disponibile'. POST /api/admin/faqs/seed exists but was NOT run by the tester."},
+      {"endpoint": "GET /api/pois", "issue": "All 114 POIs have an empty image_url, so the list and detail pages show placeholder icons instead of photos."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "POI detail /place/[id]", "issue": "There is no 'Aggiungi all'itinerario' button on the detail page. Only Indicazioni (and Biglietti when ticket_url is set) are shown. Adding works only from the list card (poi-add-*). The source code also has no such button, so this is a feature gap, not a clone defect.", "selector": "app/place/[id].tsx", "priority": "MEDIUM"},
+      {"component": "Booking gift card", "issue": "testID 'gift-card' is in the code but not rendered in the DOM. The section itself is visible.", "selector": "[data-testid=gift-card]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Itinerario unlock with MATTEO26", "issue": "The toast 'Codice non valido o scaduto.' appears because the code is missing from the database (see backend critical). Unlocking with a valid ai_access code works, and the PDF downloads (200).", "affected_selectors": ["[data-testid=unlock-code]", "[data-testid=unlock-btn]"]}
+    ],
+    "design_issues": [
+      {"screen": "Guest tabs (English browser locale)", "issues": ["The language is mixed: headers are in English ('Map of wonders', 'Check availability'), but the tab labels (Luoghi, Itinerario), 'Fai una domanda', 'Nessuna FAQ disponibile' and the gift section 'In omaggio' are hardcoded in Italian.", "The directions button label '→ Directions' has an arrow character next to the directions icon, which is redundant."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_clone_smoke.py", "/app/backend/tests/test_backend_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Create the MATTEO26 ai_access code (e.g. admin POST /api/discount-codes {code:'MATTEO26', type:'ai_access', valid_from:'2026-01-01', valid_to:'2027-12-31'}) or add an idempotent startup seed for it.",
+    "Optionally seed the FAQs (POST /api/admin/faqs/seed) and the POI images if the original deployment had them.",
+    "Fix the legacy tests/conftest.py: it falls back to the old URL https://okok-mobile.preview.emergentagent.com. Make it fail fast when EXPO_PUBLIC_BACKEND_URL is missing.",
+    "Fix the legacy tests/test_backend_api.py: it overwrites real settings (whatsapp phone, commission booking_pct, google-business business_name) without restoring them, leaves a manual TEST_ booking behind, and makes an LLM marketing-generate call that saves a library item. The tester restored or deleted all of these after the run."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 5402 lines; it should be split into routers.",
+    "class ItineraryPdfIn is defined twice (lines ~1614 and ~3416). The second definition shadows the first, which is fragile.",
+    "The only unlock-code mechanism relies on DB data that is not seeded, so a fresh environment cannot unlock itineraries."
+  ],
+  "updated_files": ["/app/backend/tests/test_clone_smoke.py"],
+  "success_rate": {"backend": "88% (37/42; all failures caused by the missing MATTEO26 data)", "frontend": "90% (all flows work except the MATTEO26 unlock)"},
+  "test_credentials": "Admin Matteo/D5230 works. MATTEO26 does NOT work (not in the database).",
+  "seed_data_creation": "Temporarily created ai_access code TEST_UNLOCK26 (deleted). The legacy suite created TEST_Guest booking 6d867d26 (deleted) and marketing library item f00dafc8 (deleted), and changed whatsapp phone, booking_pct and business_name (restored to the defaults +393881611514, 15.0, 'Appartamento Matteo').",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Container date is Nov 2026. The festival popup opens when you click a festival date in availability-calendar (e.g. day 6 in Nov 2026). The unlock UI is on /map (unlock-code, unlock-btn). Run tests with EXPO_PUBLIC_BACKEND_URL exported. Legacy test_backend_api.py mutates settings, so restore them after running it."
+}

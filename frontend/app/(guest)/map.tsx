@@ -232,7 +232,7 @@ function InfoChip({ icon, label, c }: { icon: IconName; label: string; c: any })
 
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
-  mapBox: { height: 260, overflow: "hidden", backgroundColor: c.surfaceTertiary, borderBottomWidth: 1, borderBottomColor: c.divider },
+  mapBox: { height: 340, overflow: "hidden", backgroundColor: c.surfaceTertiary, borderBottomWidth: 1, borderBottomColor: c.divider },
   lockOverlay: { ...({ position: "absolute" } as const), left: 0, right: 0, bottom: 10, alignItems: "center" },
   lockPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.brandPrimary, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   lockPillTxt: { color: c.onBrandPrimary, fontSize: 12, fontFamily: fonts.body },

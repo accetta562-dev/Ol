@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, Pressable, Modal, RefreshControl } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { router } from "expo-router";
@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/src/components/Header";
 import { Card, Field, Button, Loading, EmptyState, ChipRow, SectionTitle, useToast } from "@/src/components/ui";
 import { Icon } from "@/src/components/Icon";
+import { PoiMap } from "@/src/components/PoiMap";
 import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
@@ -51,6 +52,11 @@ export default function AdminMapPois() {
     { key: "beach", label: "Spiagge", icon: "beach" as const },
     { key: "nature", label: "Natura", icon: "pine-tree" as const },
   ];
+
+  const tintFor = useCallback(
+    (category: string) => (category === "beach" ? colors.info : category === "nature" ? colors.olive : colors.brandPrimary),
+    [colors],
+  );
 
   const save = async () => {
     if (!editing?.name?.trim()) return toast.show("Nome obbligatorio", "error");
@@ -169,6 +175,11 @@ export default function AdminMapPois() {
 
         <ChipRow items={chips} selected={cat} onSelect={setCat} />
 
+        <View style={s.mapBox} testID="admin-poi-map">
+          {pois.isLoading ? <Loading /> : <PoiMap pois={list} selectedIds={[]} onPressPoi={(p) => setEditing(p)} tintFor={tintFor} />}
+        </View>
+        <Text style={[s.hint, { paddingHorizontal: spacing.md, marginTop: spacing.xs }]}>Tocca un punto sulla mappa per modificarlo.</Text>
+
         <View style={{ padding: spacing.md, gap: spacing.sm }}>
           {pois.isLoading ? (
             <Loading />
@@ -253,6 +264,7 @@ function IoBtn({ icon, label, onPress, c, s, testID }: any) {
 
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
+  mapBox: { height: 340, marginHorizontal: spacing.md, borderRadius: radius.lg, overflow: "hidden", backgroundColor: c.surfaceTertiary, borderWidth: 1, borderColor: c.border },
   addBtn: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
   hint: { color: c.muted, fontSize: 12, fontFamily: fonts.body, lineHeight: 17 },
   ioRow: { flexDirection: "row", gap: spacing.sm },
