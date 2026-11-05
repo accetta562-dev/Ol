@@ -8,6 +8,9 @@ export const TOKEN_KEY = "traap_admin_token";
 
 export const api = axios.create({ baseURL: API_BASE, timeout: 60000 });
 
+// Resolve backend-relative media paths (e.g. "/api/files/...") to absolute URLs.
+export const mediaUri = (u?: string | null) => (u && u.startsWith("/api/") ? `${BACKEND_URL}${u}` : u || "");
+
 api.interceptors.request.use(async (cfg) => {
   const token = await storage.secureGet<string>(TOKEN_KEY, "");
   if (token) {
@@ -24,11 +27,13 @@ export async function streamCarmelo(
   body: unknown,
   onDelta: (chunk: string, full: string) => void,
 ): Promise<string> {
+  const token = await storage.secureGet<string>(TOKEN_KEY, "");
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(body),
   });
+  if (!res.ok) throw new Error(res.status === 401 ? "Accesso admin richiesto" : `Errore ${res.status}`);
   const text = await res.text();
   let full = "";
   for (const line of text.split("\n")) {

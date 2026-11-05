@@ -12,6 +12,19 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
+import { LibraryMedia } from "@/src/components/marketing/LibraryMedia";
+import { VideoScriptsTab } from "@/src/components/marketing/VideoScriptsTab";
+import { CalendarTab } from "@/src/components/marketing/CalendarTab";
+import { StrategyTab } from "@/src/components/marketing/StrategyTab";
+import { CoachTab } from "@/src/components/marketing/CoachTab";
+
+const TABS = [
+  { key: "post", label: "Post", icon: "post-outline" as const },
+  { key: "video", label: "Script video", icon: "movie-open-outline" as const },
+  { key: "calendar", label: "Calendario", icon: "calendar-month-outline" as const },
+  { key: "strategy", label: "Strategia", icon: "chart-timeline-variant" as const },
+  { key: "coach", label: "Coach & audit", icon: "account-tie-voice-outline" as const },
+];
 
 const PLATFORMS = [
   { key: "instagram_post", label: "Instagram", icon: "instagram" as const },
@@ -40,6 +53,7 @@ export default function AdminMarketing() {
   const qc = useQueryClient();
 
   const [platform, setPlatform] = useState("instagram_post");
+  const [tab, setTab] = useState("post");
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState("");
   const [result, setResult] = useState<any>(null);
@@ -103,6 +117,15 @@ export default function AdminMarketing() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => qc.invalidateQueries({ queryKey: ["marketing-library"] })} tintColor={colors.brandPrimary} />}
       >
+        <View style={{ marginHorizontal: -spacing.md, marginBottom: spacing.sm }}>
+          <ChipRow items={TABS} selected={tab} onSelect={setTab} />
+        </View>
+        {tab === "video" ? <VideoScriptsTab /> : null}
+        {tab === "calendar" ? <CalendarTab /> : null}
+        {tab === "strategy" ? <StrategyTab /> : null}
+        {tab === "coach" ? <CoachTab /> : null}
+        {tab === "post" ? (
+        <>
         <Card style={{ gap: spacing.sm }}>
           <SectionTitle title="Genera un post" />
           <Text style={s.miniLabel}>PIATTAFORMA</Text>
@@ -150,10 +173,13 @@ export default function AdminMarketing() {
                 </View>
                 <Text style={s.libTopic}>{it.topic}</Text>
                 <Text style={s.libBody} numberOfLines={4}>{renderContent(it.content)}</Text>
+                <LibraryMedia item={it} />
               </Card>
             ))}
           </View>
         )}
+        </>
+        ) : null}
       </KeyboardAwareScrollView>
     </View>
   );

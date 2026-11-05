@@ -5,12 +5,15 @@ import { useTranslation } from "react-i18next";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { Header } from "@/src/components/Header";
-import { Card, EmptyState, Loading, Button, Field, useToast } from "@/src/components/ui";
+import { Card, EmptyState, Loading, Button, Field, ChipRow, useToast } from "@/src/components/ui";
 import { Icon } from "@/src/components/Icon";
 import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useFaqs } from "@/src/lib/queries";
 import { api } from "@/src/lib/api";
+import { useMyQuestions } from "@/src/lib/myQuestions";
+import { MyQuestions } from "@/src/components/MyQuestions";
+import { useQuery } from "@tanstack/react-query";
 import i18n from "@/src/i18n";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -29,6 +32,19 @@ export default function InfoScreen() {
   const [qContact, setQContact] = useState("");
   const [qMessage, setQMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [faqCat, setFaqCat] = useState("all");
+  const myQ = useMyQuestions();
+  const cats = useQuery({
+    queryKey: ["faq-categories"],
+    queryFn: async () => (await api.get("/faqs/categories")).data.categories as any[],
+  });
+  const lang = i18n.language?.slice(0, 2) || "it";
+  const usedCats = new Set((faqs.data ?? []).map((f) => f.category));
+  const catChips = [
+    { key: "all", label: t("guest.all") },
+    ...(cats.data ?? []).filter((c) => usedCats.has(c.key)).map((c) => ({ key: c.key, label: c[`label_${lang}`] || c.label_it })),
+  ];
+  const faqList = (faqs.data ?? []).filter((f) => faqCat === "all" || f.category === faqCat);
 
   const toggle = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -41,13 +57,14 @@ export default function InfoScreen() {
     }
     setSending(true);
     try {
-      await api.post("/guest-questions", {
+      const res = await api.post("/guest-questions", {
         name: qName,
         contact: qContact,
         contact_kind: qContact.includes("@") ? "email" : "phone",
         message: qMessage,
         language: i18n.language,
       });
+      if (res.data?.id) myQ.add(res.data.id);
       toast.show(t("booking.toast_sent"), "success");
       setQName("");
       setQContact("");
@@ -63,7 +80,7 @@ export default function InfoScreen() {
   return (
     <View style={s.screen}>
       <Header
-        title="Info & FAQ"
+        title={t("guest.info_title")}
         kicker="Appartamento Matteo"
         right={
           <Pressable testID="admin-entry" onPress={() => router.push("/admin/login")} style={s.adminBtn} hitSlop={6}>
@@ -77,7 +94,7 @@ export default function InfoScreen() {
           <Text style={s.ctaTitle}>{t("map_tutorial.badge")}</Text>
           <Text style={s.ctaDesc}>{t("ai_itinerary.description")}</Text>
           <View style={{ marginTop: spacing.md }}>
-            <Button testID="ask-question-btn" label={"Fai una domanda"} icon="chat-question-outline" variant="secondary" onPress={() => setAskOpen((v) => !v)} />
+            <Button testID="ask-question-btn" label={t("guest.ask_btn")} icon="chat-question-outline" variant="secondary" onPress={() => setAskOpen((v) => !v)} />
           </View>
           {askOpen ? (
             <Animated.View entering={FadeIn} style={{ gap: spacing.sm, marginTop: spacing.md }}>
@@ -89,15 +106,22 @@ export default function InfoScreen() {
           ) : null}
         </Card>
 
+        <MyQuestions ids={myQ.ids} />
+
         {/* FAQ */}
         <Text style={s.sectionTitle}>FAQ</Text>
+        {catChips.length > 2 ? (
+          <View style={{ marginHorizontal: -spacing.md, marginBottom: spacing.sm }}>
+            <ChipRow items={catChips} selected={faqCat} onSelect={setFaqCat} />
+          </View>
+        ) : null}
         {faqs.isLoading ? (
           <Loading />
-        ) : (faqs.data ?? []).length === 0 ? (
-          <EmptyState icon="frequently-asked-questions" title="—" subtitle="Nessuna FAQ disponibile" />
+        ) : faqList.length === 0 ? (
+          <EmptyState icon="frequently-asked-questions" title="—" subtitle={t("guest.no_faq")} />
         ) : (
           <View style={{ gap: spacing.sm }}>
-            {(faqs.data ?? []).map((f) => {
+            {faqList.map((f) => {
               const isOpen = open === f.id;
               return (
                 <Pressable key={f.id} testID={`faq-${f.id}`} onPress={() => toggle(f.id)}>
@@ -137,7 +161,7 @@ export default function InfoScreen() {
         </Card>
 
         {/* Codici struttura */}
-        <Text style={s.sectionTitle}>Codici struttura</Text>
+        <Text style={s.sectionTitle}>{t("guest.codes_title")}</Text>
         <Card style={{ gap: spacing.sm }}>
           <View style={s.codeRow}>
             <View>

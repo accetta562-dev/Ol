@@ -23,6 +23,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const saved = await storage.secureGet<string>(TOKEN_KEY, "");
+      if (saved) {
+        try {
+          await api.get("/auth/me");
+        } catch (e: any) {
+          if (e?.response?.status === 401) {
+            await storage.secureRemove(TOKEN_KEY);
+            setToken(null);
+            setLoading(false);
+            return;
+          }
+        }
+      }
       setToken(saved || null);
       setLoading(false);
     })();

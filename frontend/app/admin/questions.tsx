@@ -10,6 +10,7 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
+import { AdminThreadModal } from "@/src/components/AdminThread";
 
 type GQ = { id: string; name: string; contact: string; message: string; status: string; created_at?: string; answer?: string };
 
@@ -24,6 +25,7 @@ export default function AdminQuestions() {
   const [cat, setCat] = useState("generale");
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !token) router.replace("/admin/login");
@@ -116,6 +118,10 @@ export default function AdminQuestions() {
                 </View>
                 <Text style={s.qMsg}>{it.message}</Text>
                 <View style={s.actions}>
+                  <Pressable testID={`gq-reply-${it.id}`} style={s.actBtn} onPress={() => setThreadId(it.id)}>
+                    <Icon name="reply" size={16} color={colors.brandPrimary} />
+                    <Text style={s.actTxt}>Rispondi</Text>
+                  </Pressable>
                   <Pressable testID={`gq-promote-${it.id}`} style={s.actBtn} onPress={() => { setPromote(it); setAnswer(it.answer || ""); }}>
                     <Icon name="frequently-asked-questions" size={16} color={colors.brandPrimary} />
                     <Text style={s.actTxt}>A FAQ</Text>
@@ -156,6 +162,7 @@ export default function AdminQuestions() {
           </Pressable>
         </Pressable>
       </Modal>
+      <AdminThreadModal id={threadId} onClose={() => setThreadId(null)} />
     </View>
   );
 }

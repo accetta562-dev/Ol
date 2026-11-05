@@ -95,9 +95,9 @@ const useButtonStyles = makeStyles((c) => ({
 }));
 
 /* ----------------------------- Card ----------------------------- */
-export function Card({ children, style }: { children: React.ReactNode; style?: any }) {
+export function Card({ children, style, testID }: { children: React.ReactNode; style?: any; testID?: string }) {
   const s = useCardStyles();
-  return <View style={[s.card, style]}>{children}</View>;
+  return <View testID={testID} style={[s.card, style]}>{children}</View>;
 }
 const useCardStyles = makeStyles((c) => ({
   card: {

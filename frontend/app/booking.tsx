@@ -55,6 +55,21 @@ export default function BookingScreen() {
     queryFn: async () => (await api.post("/quote", quoteBody)).data,
   });
 
+  const code = discount.trim().toUpperCase();
+  const discountCheck = useQuery({
+    queryKey: ["discount-validate", code],
+    enabled: code.length >= 3,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const d = (await api.get(`/discount-codes/validate/${encodeURIComponent(code)}`)).data;
+        return { ok: true, code: d.code, percent: d.percent, error: "" };
+      } catch (e: any) {
+        return { ok: false, code, percent: 0, error: e?.response?.data?.detail || "Codice non valido" };
+      }
+    },
+  });
+
   const submit = async () => {
     if (!canQuote) return toast.show(t("booking.toast_select_dates"), "error");
     if (!name.trim() || !email.trim()) return toast.show(t("booking.toast_need_name_email"), "error");
@@ -172,6 +187,11 @@ export default function BookingScreen() {
         {/* Discount */}
         <View style={{ marginTop: spacing.md }}>
           <Field value={discount} onChangeText={setDiscount} placeholder={t("booking.discount_code")} icon="ticket-percent-outline" autoCapitalize="characters" testID="discount-code" />
+          {discountCheck.data ? (
+            <Text testID="discount-status" style={[s.discountStatus, { color: discountCheck.data.ok ? colors.success : colors.error }]}>
+              {discountCheck.data.ok ? `✓ ${discountCheck.data.code} −${discountCheck.data.percent}%` : `✗ ${discountCheck.data.error}`}
+            </Text>
+          ) : null}
         </View>
 
         {/* Quote breakdown */}
@@ -183,6 +203,9 @@ export default function BookingScreen() {
             {q.ac_fee > 0 ? <QuoteRow label={t("booking.ac")} value={euro(q.ac_fee)} /> : null}
             <QuoteRow label={t("booking.cleaning")} value={euro(q.cleaning_fee)} />
             <QuoteRow label={t("booking.tourist_tax")} value={euro(q.tourist_tax)} />
+            {(q.custom_fees ?? []).map((cf: any) => (
+              <QuoteRow key={cf.name} label={cf.name} value={euro(cf.cost)} />
+            ))}
             {q.discount_amount > 0 ? (
               <QuoteRow
                 label={t("booking.discount_label", { code: q.discount_info?.code, percent: q.discount_info?.percent })}
@@ -234,6 +257,7 @@ function QuoteRow({ label, value, highlight }: { label: string; value: string; h
 }
 
 const useStyles = makeStyles((c) => ({
+  discountStatus: { fontSize: 13, fontFamily: fonts.body, fontWeight: "600", marginTop: 6, marginLeft: 4 },
   screen: { flex: 1, backgroundColor: c.surface },
   datesRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   dateBox: { flex: 1 },

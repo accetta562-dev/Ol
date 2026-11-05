@@ -71,6 +71,7 @@ from marketing_ai import (
 
 from itinerary_pdf import build_itinerary_pdf
 import poi_images
+import object_storage
 
 # ============================================================
 # Setup
@@ -1425,7 +1426,7 @@ async def _save_message(session_id: str, role: str, content: str, model: Optiona
     })
 
 
-@api.get("/carmelo/models")
+@api.get("/carmelo/models", dependencies=[Depends(get_current_admin)])
 async def carmelo_list_models():
     """Elenco modelli disponibili per Carmelo."""
     return {
@@ -1435,7 +1436,7 @@ async def carmelo_list_models():
     }
 
 
-@api.get("/carmelo/messages/{session_id}")
+@api.get("/carmelo/messages/{session_id}", dependencies=[Depends(get_current_admin)])
 async def carmelo_get_messages(session_id: str):
     """Ritorna lo storico messaggi (per la UI)."""
     cur = db.carmelo_messages.find(
@@ -1444,7 +1445,7 @@ async def carmelo_get_messages(session_id: str):
     return await cur.to_list(500)
 
 
-@api.delete("/carmelo/messages/{session_id}")
+@api.delete("/carmelo/messages/{session_id}", dependencies=[Depends(get_current_admin)])
 async def carmelo_clear_messages(session_id: str):
     """Cancella lo storico e la cache in memoria."""
     await db.carmelo_messages.delete_many({"session_id": session_id})
@@ -1452,7 +1453,7 @@ async def carmelo_clear_messages(session_id: str):
     return {"ok": True, "cache_removed": removed}
 
 
-@api.post("/carmelo/chat")
+@api.post("/carmelo/chat", dependencies=[Depends(get_current_admin)])
 async def carmelo_chat(body: CarmeloChatIn):
     """Chat conversazionale multi-turno con Carmelo. Streaming SSE."""
     models = carmelo_resolve_models(body.model)
@@ -1491,7 +1492,7 @@ async def carmelo_chat(body: CarmeloChatIn):
     )
 
 
-@api.post("/carmelo/itinerary")
+@api.post("/carmelo/itinerary", dependencies=[Depends(get_current_admin)])
 async def carmelo_itinerary(body: CarmeloItineraryIn):
     """Genera un itinerario completo. Streaming SSE."""
     days = max(1, min(15, int(body.days or 3)))
@@ -1617,7 +1618,7 @@ class ItineraryPdfIn(BaseModel):
     days: Optional[int] = None
 
 
-@api.post("/carmelo/itinerary/pdf")
+@api.post("/carmelo/itinerary/pdf", dependencies=[Depends(get_current_admin)])
 async def carmelo_itinerary_pdf(body: ItineraryPdfIn):
     """Genera un PDF elegante dell'itinerario (logo + info Appartamento Matteo)."""
     text = (body.content or "").strip()
@@ -1820,7 +1821,7 @@ def _fresh_chat(session_id: str, model_key: str, system_prompt: str, max_tokens:
     return chat
 
 
-@api.post("/carmelo/itinerary/structured")
+@api.post("/carmelo/itinerary/structured", dependencies=[Depends(get_current_admin)])
 async def carmelo_itinerary_structured(body: StructuredItineraryIn):
     """Genera un itinerario SCHEMATICO strutturato (JSON) con immagini per ogni attrazione.
     Strategia scalabile: 1 call 'outline' veloce + espansione dei giorni IN PARALLELO."""
@@ -1978,7 +1979,7 @@ def _prune_for_prompt(itin: dict) -> dict:
     return slim
 
 
-@api.post("/carmelo/itinerary/patch")
+@api.post("/carmelo/itinerary/patch", dependencies=[Depends(get_current_admin)])
 async def carmelo_itinerary_patch(body: ItineraryPatchIn):
     """Modifica un itinerario esistente in base a una richiesta in linguaggio naturale.
 
@@ -2162,7 +2163,7 @@ async def carmelo_itinerary_patch(body: ItineraryPatchIn):
 
 
 
-@api.post("/carmelo/itinerary/structured/pdf")
+@api.post("/carmelo/itinerary/structured/pdf", dependencies=[Depends(get_current_admin)])
 async def carmelo_itinerary_structured_pdf(body: StructuredPdfIn):
     """PDF schematico dall'itinerario strutturato (con immagini)."""
     itin = body.itinerary or {}
@@ -2183,7 +2184,7 @@ async def carmelo_itinerary_structured_pdf(body: StructuredPdfIn):
 
 
 
-@api.post("/carmelo/adapt-itinerary")
+@api.post("/carmelo/adapt-itinerary", dependencies=[Depends(get_current_admin)])
 async def carmelo_adapt_itinerary(body: CarmeloAdaptIn):
     """Adatta un itinerario esterno (testo già estratto), arricchendolo coi contatti e info locali."""
     text = (body.original_text or "").strip()
@@ -2231,7 +2232,7 @@ async def carmelo_adapt_itinerary(body: CarmeloAdaptIn):
     )
 
 
-@api.post("/carmelo/extract-file")
+@api.post("/carmelo/extract-file", dependencies=[Depends(get_current_admin)])
 async def carmelo_extract_file(file: UploadFile = File(...)):
     """Estrae testo da un file PDF/DOCX/TXT caricato. Ritorna { text }."""
     if not file or not file.filename:
@@ -2542,15 +2543,7 @@ async def download_itinerary_pdf(slug: str, code: Optional[str] = None):
     if visibility != "public":
         if not await _is_valid_unlock_code(code or ""):
             raise HTTPException(status_code=403, detail="Codice prenotazione richiesto")
-    pdf_path = UPLOAD_DIR_ITINERARIES / doc["pdf_filename"]
-    if not pdf_path.exists():
-        raise HTTPException(status_code=404, detail="File PDF mancante sul server")
-    safe_title = content_slugify(doc.get("title", "itinerario"))
-    return FileResponse(
-        path=str(pdf_path),
-        media_type="application/pdf",
-        filename=f"{safe_title}.pdf",
-    )
+    return await _itinerary_pdf_response(doc)
 
 
 # ============================================================
@@ -2853,6 +2846,18 @@ async def admin_delete_itinerary(itin_id: str, _: str = Depends(get_current_admi
     return {"ok": True}
 
 
+async def _itinerary_pdf_response(doc: dict) -> Response:
+    name = f"{content_slugify(doc.get('title', 'itinerario'))}.pdf"
+    if doc.get("pdf_storage_path"):
+        data, _ct = await asyncio.to_thread(object_storage.get_object, doc["pdf_storage_path"])
+        return Response(content=data, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    p = UPLOAD_DIR_ITINERARIES / (doc.get("pdf_filename") or "")
+    if not doc.get("pdf_filename") or not p.exists():
+        raise HTTPException(404, "File PDF mancante")
+    return FileResponse(path=str(p), media_type="application/pdf", filename=name)
+
+
 @api.post("/admin/itineraries/{itin_id}/upload-pdf")
 async def admin_upload_itinerary_pdf(itin_id: str,
                                       file: UploadFile = File(...),
@@ -2868,23 +2873,14 @@ async def admin_upload_itinerary_pdf(itin_id: str,
     if not content.startswith(b"%PDF"):
         raise HTTPException(400, "File non riconosciuto come PDF valido")
 
-    if doc.get("pdf_filename"):
-        old = UPLOAD_DIR_ITINERARIES / doc["pdf_filename"]
-        if old.exists():
-            try:
-                old.unlink()
-            except Exception:
-                pass
-
+    path = f"{object_storage.APP_NAME}/itineraries/{itin_id}-{uuid.uuid4().hex[:8]}.pdf"
+    res = await asyncio.to_thread(object_storage.put_object, path, content, "application/pdf")
     new_filename = f"{itin_id}.pdf"
-    target = UPLOAD_DIR_ITINERARIES / new_filename
-    with open(target, "wb") as f:
-        f.write(content)
-
     await db.carmelo_itineraries.update_one(
         {"id": itin_id},
         {"$set": {
             "pdf_filename": new_filename,
+            "pdf_storage_path": res["path"],
             "pdf_size": len(content),
             "pdf_uploaded_at": now_utc().isoformat(),
             "updated_at": now_utc().isoformat(),
@@ -2899,16 +2895,9 @@ async def admin_delete_itinerary_pdf(itin_id: str,
     doc = await db.carmelo_itineraries.find_one({"id": itin_id})
     if not doc:
         raise HTTPException(404, "Itinerario non trovato")
-    if doc.get("pdf_filename"):
-        p = UPLOAD_DIR_ITINERARIES / doc["pdf_filename"]
-        if p.exists():
-            try:
-                p.unlink()
-            except Exception:
-                pass
     await db.carmelo_itineraries.update_one(
         {"id": itin_id},
-        {"$set": {"pdf_filename": None, "pdf_size": 0, "pdf_uploaded_at": None,
+        {"$set": {"pdf_filename": None, "pdf_storage_path": None, "pdf_size": 0, "pdf_uploaded_at": None,
                   "updated_at": now_utc().isoformat()}},
     )
     return {"ok": True}
@@ -2921,24 +2910,7 @@ async def admin_get_itinerary_pdf(itin_id: str, _: str = Depends(get_current_adm
         raise HTTPException(404, "Itinerario non trovato")
     if not doc.get("pdf_filename"):
         raise HTTPException(404, "PDF non disponibile")
-    p = UPLOAD_DIR_ITINERARIES / doc["pdf_filename"]
-    if not p.exists():
-        raise HTTPException(404, "File PDF mancante")
-    return FileResponse(path=str(p), media_type="application/pdf",
-                         filename=f"{content_slugify(doc.get('title', 'itinerario'))}.pdf")
-
-
-    today = now_utc().date().isoformat()
-    ai_code = await db.discount_codes.find_one(
-        {"code": code_clean, "active": True, "type": "ai_access"}, {"_id": 0}
-    )
-    if ai_code and ai_code.get("valid_from", "") <= today <= ai_code.get("valid_to", ""):
-        return {"valid": True, "kind": "ai_access"}
-
-    raise HTTPException(
-        status_code=403,
-        detail="Codice non valido o scaduto. Verrà generato automaticamente quando l'host approverà la tua prenotazione.",
-    )
+    return await _itinerary_pdf_response(doc)
 
 
 # ============================================================
@@ -5381,6 +5353,105 @@ async def reset_dish(dish_id: str, _: str = Depends(get_current_admin)):
     await db.dish_overrides.delete_one({"id": dish_id})
     return {"ok": True}
 
+
+
+# ============================================================
+# Object storage: image uploads (admin) + public file serving
+# ============================================================
+UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+
+
+@api.post("/admin/uploads")
+async def admin_upload_image(body: PhotoIn, _: str = Depends(get_current_admin)):
+    if not body.data_url.startswith("data:") or "," not in body.data_url:
+        raise HTTPException(status_code=400, detail="Formato immagine non valido")
+    header, b64 = body.data_url.split(",", 1)
+    mime = header[5:].split(";")[0] or "image/jpeg"
+    if not mime.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Carica un'immagine")
+    data = base64.b64decode(b64)
+    if len(data) > UPLOAD_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Immagine troppo grande (max 10 MB)")
+    ext = mime.split("/")[-1].replace("jpeg", "jpg")
+    path = f"{object_storage.APP_NAME}/uploads/{uuid.uuid4()}.{ext}"
+    try:
+        res = await asyncio.to_thread(object_storage.put_object, path, data, mime)
+    except Exception as e:
+        logger.exception("Upload failed: %s", e)
+        raise HTTPException(status_code=502, detail="Caricamento non riuscito, riprova")
+    await db.files.insert_one({
+        "id": str(uuid.uuid4()),
+        "storage_path": res["path"],
+        "original_filename": body.filename,
+        "content_type": mime,
+        "size": len(data),
+        "is_deleted": False,
+        "created_at": now_utc().isoformat(),
+    })
+    return {"url": f"/api/files/{res['path']}", "path": res["path"]}
+
+
+@api.get("/files/{path:path}")
+async def serve_file(path: str):
+    rec = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
+    if not rec:
+        raise HTTPException(status_code=404, detail="File non trovato")
+    data, ct = await asyncio.to_thread(object_storage.get_object, path)
+    return Response(content=data, media_type=rec.get("content_type") or ct,
+                    headers={"Cache-Control": "public, max-age=31536000"})
+
+
+# ============================================================
+# Guest question threads (guest <-> host conversation)
+# ============================================================
+class ThreadReplyIn(BaseModel):
+    text: str
+
+
+def _thread_view(d: dict) -> dict:
+    thread = list(d.get("thread") or [])
+    if not thread:
+        thread = [{"from": "guest", "text": d.get("message", ""), "at": d.get("created_at")}]
+        if d.get("answer"):
+            thread.append({"from": "host", "text": d["answer"], "at": d.get("answered_at")})
+    return {"id": d["id"], "name": d.get("name"), "status": d.get("status"),
+            "created_at": d.get("created_at"), "thread": thread}
+
+
+@api.get("/guest-questions/{qid}")
+async def get_guest_thread(qid: str):
+    d = await db.carmelo_guest_questions.find_one({"id": qid}, {"_id": 0})
+    if not d:
+        raise HTTPException(status_code=404, detail="Domanda non trovata")
+    return _thread_view(d)
+
+
+async def _append_reply(qid: str, who: str, text: str) -> dict:
+    text = (text or "").strip()[:4000]
+    if not text:
+        raise HTTPException(status_code=400, detail="Messaggio vuoto")
+    d = await db.carmelo_guest_questions.find_one({"id": qid}, {"_id": 0})
+    if not d:
+        raise HTTPException(status_code=404, detail="Domanda non trovata")
+    thread = _thread_view(d)["thread"] + [{"from": who, "text": text, "at": now_utc().isoformat()}]
+    update = {"thread": thread, "status": "answered" if who == "host" else "open"}
+    if who == "host":
+        update.update({"answer": text, "answered_at": now_utc().isoformat()})
+    await db.carmelo_guest_questions.update_one({"id": qid}, {"$set": update})
+    d.update(update)
+    return _thread_view(d)
+
+
+@api.post("/guest-questions/{qid}/reply")
+async def guest_reply(qid: str, body: ThreadReplyIn):
+    view = await _append_reply(qid, "guest", body.text)
+    asyncio.create_task(send_whatsapp_notification("new_request", f"Nuovo messaggio da {view.get('name')}: {body.text[:200]}"))
+    return view
+
+
+@api.post("/admin/guest-questions/{qid}/reply")
+async def admin_reply(qid: str, body: ThreadReplyIn, _: str = Depends(get_current_admin)):
+    return await _append_reply(qid, "host", body.text)
 
 
 # ============================================================

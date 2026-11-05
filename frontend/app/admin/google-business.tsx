@@ -12,6 +12,7 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
+import { GbExtras } from "@/src/components/admin/GbExtras";
 
 export default function AdminGoogleBusiness() {
   const s = useStyles();
@@ -155,6 +156,7 @@ export default function AdminGoogleBusiness() {
                 </View>
               ) : null}
             </Card>
+            <GbExtras />
           </>
         )}
       </KeyboardAwareScrollView>

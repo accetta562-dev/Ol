@@ -13,6 +13,7 @@ import { usePois, Poi } from "@/src/lib/queries";
 import { useItinerary } from "@/src/lib/itinerary";
 import { api } from "@/src/lib/api";
 import { downloadItineraryPdf } from "@/src/lib/pdf";
+import { SuggestedItineraries } from "@/src/components/SuggestedItineraries";
 
 const CAT_TINT: Record<string, (c: any) => string> = {
   art: (c) => c.brandPrimary,
@@ -38,7 +39,7 @@ export default function MapScreen() {
   const [detail, setDetail] = useState<Poi | null>(null);
 
   const chips = [
-    { key: "all", label: "Tutti", icon: "map-marker-multiple" as IconName },
+    { key: "all", label: t("guest.all"), icon: "map-marker-multiple" as IconName },
     { key: "art", label: t("map_page.categories.art"), icon: "bank" as IconName },
     { key: "beach", label: t("map_page.categories.beach"), icon: "beach" as IconName },
     { key: "nature", label: t("map_page.categories.nature"), icon: "pine-tree" as IconName },
@@ -52,7 +53,7 @@ export default function MapScreen() {
 
   const onPressPoi = (p: Poi) => {
     if (!unlocked) {
-      toast.show("Inserisci il codice per vedere i dettagli dei luoghi", "error");
+      toast.show(t("guest.need_code_details"), "error");
       return;
     }
     setDetail(p);
@@ -64,29 +65,29 @@ export default function MapScreen() {
   };
 
   const verify = async () => {
-    if (!code.trim()) return toast.show("Inserisci il codice", "error");
+    if (!code.trim()) return toast.show(t("guest.enter_code"), "error");
     setVerifying(true);
     try {
       await api.post("/verify-code", { code: code.trim() });
       setUnlocked(true);
-      toast.show("Sbloccato! Ora i luoghi sono cliccabili", "success");
+      toast.show(t("guest.unlocked_toast"), "success");
     } catch (e: any) {
       setUnlocked(false);
-      toast.show(e?.response?.data?.detail || "Codice non valido", "error");
+      toast.show(e?.response?.data?.detail || t("guest.invalid_code"), "error");
     } finally {
       setVerifying(false);
     }
   };
 
   const download = async () => {
-    if (selected.length === 0) return toast.show("Seleziona almeno un luogo", "error");
-    if (!unlocked) return toast.show("Sblocca prima con il tuo codice", "error");
+    if (selected.length === 0) return toast.show(t("guest.select_one"), "error");
+    if (!unlocked) return toast.show(t("guest.unlock_first"), "error");
     setDownloading(true);
     try {
       await downloadItineraryPdf({ code: code.trim(), poiIds: selected, travelerName: name.trim() });
-      toast.show("Itinerario pronto", "success");
+      toast.show(t("guest.itinerary_ready"), "success");
     } catch (e: any) {
-      toast.show(e?.message || "Errore PDF", "error");
+      toast.show(e?.message || t("map_page.pdf_error"), "error");
     } finally {
       setDownloading(false);
     }
@@ -94,7 +95,7 @@ export default function MapScreen() {
 
   return (
     <View style={s.screen}>
-      <Header title="Mappa & Itinerario" kicker="Esplora" />
+      <Header title={t("guest.map_title")} kicker={t("guest.map_kicker")} />
       <ChipRow items={chips} selected={cat} onSelect={setCat} />
 
       <View style={s.mapBox}>
@@ -107,7 +108,7 @@ export default function MapScreen() {
           <View style={s.lockOverlay} pointerEvents="none">
             <View style={s.lockPill}>
               <Icon name="lock-outline" size={14} color={colors.onBrandPrimary} />
-              <Text style={s.lockPillTxt}>Inserisci il codice per aprire i luoghi</Text>
+              <Text style={s.lockPillTxt}>{t("guest.lock_pill")}</Text>
             </View>
           </View>
         ) : null}
@@ -117,31 +118,31 @@ export default function MapScreen() {
         <View style={s.unlockCard}>
           <View style={s.unlockHead}>
             <Icon name={unlocked ? "lock-open-variant" : "lock-outline"} size={18} color={unlocked ? colors.success : colors.brand} />
-            <Text style={s.unlockTitle}>{unlocked ? "Mappa sbloccata" : "Sblocca la mappa"}</Text>
+            <Text style={s.unlockTitle}>{unlocked ? t("guest.map_unlocked") : t("guest.unlock_map")}</Text>
           </View>
           {!unlocked ? (
             <>
-              <Text style={s.hint}>Inserisci il codice di prenotazione (o quello fornito da Matteo) per aprire i luoghi e scaricare il PDF.</Text>
-              <Field value={code} onChangeText={setCode} placeholder="es. ABC12345" icon="key-variant" autoCapitalize="characters" testID="unlock-code" />
-              <Button testID="unlock-btn" label="Sblocca" icon="lock-open-variant" variant="olive" onPress={verify} loading={verifying} />
+              <Text style={s.hint}>{t("guest.unlock_hint")}</Text>
+              <Field value={code} onChangeText={setCode} placeholder={t("guest.code_ph")} icon="key-variant" autoCapitalize="characters" testID="unlock-code" />
+              <Button testID="unlock-btn" label={t("guest.unlock_btn")} icon="lock-open-variant" variant="olive" onPress={verify} loading={verifying} />
             </>
           ) : (
-            <Field value={name} onChangeText={setName} placeholder="Il tuo nome (per il PDF, opzionale)" icon="account-outline" testID="traveler-name" />
+            <Field value={name} onChangeText={setName} placeholder={t("map_page.traveler_name_ph")} icon="account-outline" testID="traveler-name" />
           )}
         </View>
 
         <View style={s.sel}>
           <Icon name="playlist-check" size={18} color={colors.brandPrimary} />
-          <Text style={s.selTitle}>Il mio itinerario · {selected.length}</Text>
+          <Text style={s.selTitle}>{t("map_page.my_itinerary")} · {selected.length}</Text>
           {selected.length > 0 ? (
             <Pressable testID="clear-itinerary" onPress={clear} hitSlop={6}>
-              <Text style={s.clear}>Svuota</Text>
+              <Text style={s.clear}>{t("map_page.clear")}</Text>
             </Pressable>
           ) : null}
         </View>
 
         {selectedPois.length === 0 ? (
-          <Text style={s.hint}>Tocca i punti sulla mappa (o le etichette) per leggere le info e aggiungerli al tuo itinerario.</Text>
+          <Text style={s.hint}>{t("guest.build_hint")}</Text>
         ) : (
           <View style={{ gap: 6 }}>
             {selectedPois.map((p, i) => (
@@ -161,7 +162,9 @@ export default function MapScreen() {
           </View>
         )}
 
-        <Button testID="download-pdf" label="Scarica itinerario (PDF)" icon="file-pdf-box" onPress={download} loading={downloading} disabled={selected.length === 0} />
+        <Button testID="download-pdf" label={t("map_page.download_pdf")} icon="file-pdf-box" onPress={download} loading={downloading} disabled={selected.length === 0} />
+
+        <SuggestedItineraries code={unlocked ? code.trim() : ""} />
       </ScrollView>
 
       {/* POI detail sheet */}
@@ -196,20 +199,20 @@ export default function MapScreen() {
                   <View style={{ flex: 1 }}>
                     <Button
                       testID="detail-add"
-                      label={has(detail.id) ? "Rimuovi" : "Aggiungi"}
+                      label={has(detail.id) ? t("map_page.remove") : t("guest.add")}
                       icon={has(detail.id) ? "playlist-remove" : "playlist-plus"}
                       variant={has(detail.id) ? "outline" : "primary"}
                       onPress={() => toggle(detail.id)}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Button testID="detail-directions" label="Indicazioni" icon="directions" variant="olive" onPress={() => openDirections(detail)} />
+                    <Button testID="detail-directions" label={t("map_page.directions")} icon="directions" variant="olive" onPress={() => openDirections(detail)} />
                   </View>
                 </View>
                 {detail.ticket_url ? (
                   <Pressable testID="detail-ticket" style={s.ticketLink} onPress={() => Linking.openURL(detail.ticket_url!)}>
                     <Icon name="ticket-confirmation-outline" size={16} color={colors.brandPrimary} />
-                    <Text style={s.ticketTxt}>Biglietti / sito ufficiale</Text>
+                    <Text style={s.ticketTxt}>{t("guest.tickets_site")}</Text>
                   </Pressable>
                 ) : null}
               </ScrollView>

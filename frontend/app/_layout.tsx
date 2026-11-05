@@ -12,11 +12,13 @@ import { AuthProvider } from "@/src/lib/auth";
 import { FavoritesProvider } from "@/src/lib/favorites";
 import { ItineraryProvider } from "@/src/lib/itinerary";
 import { ToastProvider } from "@/src/components/ui";
+import { useTrackVisit } from "@/src/lib/visits";
 import "@/src/i18n";
 
 LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
+  useTrackVisit();
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>

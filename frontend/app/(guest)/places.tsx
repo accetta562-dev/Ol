@@ -10,6 +10,7 @@ import { Icon, IconName } from "@/src/components/Icon";
 import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { usePois, Poi } from "@/src/lib/queries";
+import { mediaUri } from "@/src/lib/api";
 import { useItinerary } from "@/src/lib/itinerary";
 import { ItineraryFab } from "@/src/components/ItineraryFab";
 
@@ -62,7 +63,7 @@ export default function PlacesScreen() {
       >
         <View style={[s.thumb, { backgroundColor: colors.surfaceTertiary }]}>
           {item.image_url ? (
-            <Image source={{ uri: item.image_url }} style={s.thumbImg} contentFit="cover" />
+            <Image source={{ uri: mediaUri(item.image_url) }} style={s.thumbImg} contentFit="cover" />
           ) : (
             <Icon name={meta.icon} size={26} color={meta.color(colors)} />
           )}

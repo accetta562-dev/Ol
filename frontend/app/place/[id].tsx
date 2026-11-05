@@ -6,11 +6,13 @@ import { useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { Header } from "@/src/components/Header";
-import { Button, Card, EmptyState } from "@/src/components/ui";
+import { Button, Card, EmptyState, useToast } from "@/src/components/ui";
 import { Icon, IconName } from "@/src/components/Icon";
 import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { usePois } from "@/src/lib/queries";
+import { useItinerary } from "@/src/lib/itinerary";
+import { mediaUri } from "@/src/lib/api";
 
 export default function PlaceDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,6 +20,8 @@ export default function PlaceDetail() {
   const s = useStyles();
   const { colors } = useTheme();
   const pois = usePois();
+  const { has, toggle } = useItinerary();
+  const toast = useToast();
   const poi = pois.data?.find((p) => p.id === id);
 
   if (!poi) {
@@ -47,7 +51,7 @@ export default function PlaceDetail() {
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false}>
         <View style={s.hero}>
           {poi.image_url ? (
-            <Image source={{ uri: poi.image_url }} style={s.heroImg} contentFit="cover" />
+            <Image source={{ uri: mediaUri(poi.image_url) }} style={s.heroImg} contentFit="cover" />
           ) : (
             <View style={[s.heroImg, { backgroundColor: colors.olive, alignItems: "center", justifyContent: "center" }]}>
               <Icon name="image-off-outline" size={40} color={colors.onOlive} />
@@ -90,6 +94,16 @@ export default function PlaceDetail() {
           ) : null}
 
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+            <Button
+              testID="place-add-itinerary"
+              label={has(poi.id) ? t("map_page.in_itinerary") : t("map_page.add_to_itinerary")}
+              icon={has(poi.id) ? "playlist-check" : "playlist-plus"}
+              variant={has(poi.id) ? "outline" : "olive"}
+              onPress={() => {
+                toast.show(has(poi.id) ? t("guest.removed") : t("guest.added"), "success");
+                toggle(poi.id);
+              }}
+            />
             <Button testID="place-directions" label={t("map_page.directions")} icon="directions" onPress={openDirections} />
             {poi.ticket_url ? (
               <Button

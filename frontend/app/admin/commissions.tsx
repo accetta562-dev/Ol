@@ -10,6 +10,7 @@ import { makeStyles } from "@/src/theme";
 import { fonts, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
 import { api } from "@/src/lib/api";
+import { BaseFeesCard, CustomFeesCard } from "@/src/components/admin/FeesCards";
 
 export default function AdminCommissions() {
   const s = useStyles();
@@ -83,6 +84,10 @@ export default function AdminCommissions() {
             </View>
           </Card>
         )}
+        <View style={{ height: spacing.md }} />
+        <BaseFeesCard />
+        <View style={{ height: spacing.md }} />
+        <CustomFeesCard />
       </KeyboardAwareScrollView>
     </View>
   );

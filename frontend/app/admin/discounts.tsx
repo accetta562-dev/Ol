@@ -78,6 +78,16 @@ export default function AdminDiscounts() {
     }
   };
 
+  const purgeExpired = async () => {
+    try {
+      const res = await api.delete("/discount-codes/expired");
+      qc.invalidateQueries({ queryKey: ["discount-codes"] });
+      toast.show(`Eliminati ${res.data?.deleted ?? 0} codici scaduti`, "success");
+    } catch (e: any) {
+      toast.show(e?.response?.data?.detail || "Errore", "error");
+    }
+  };
+
   if (loading || !token) return <Loading />;
   const list = codes.data ?? [];
 
@@ -112,6 +122,9 @@ export default function AdminDiscounts() {
           </View>
           <Button testID="dc-create" label="Crea codice" icon="plus" onPress={create} loading={saving} />
         </Card>
+        <View style={{ marginTop: spacing.sm }}>
+          <Button testID="dc-purge-expired" label="Elimina codici scaduti" icon="broom" variant="outline" onPress={purgeExpired} small />
+        </View>
 
         <SectionTitle title={`Codici attivi (${list.length})`} />
         {codes.isLoading ? (

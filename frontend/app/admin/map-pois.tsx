@@ -11,7 +11,9 @@ import { PoiMap } from "@/src/components/PoiMap";
 import { makeStyles, useTheme } from "@/src/theme";
 import { fonts, radius, spacing } from "@/src/lib/typography";
 import { useAuth } from "@/src/lib/auth";
-import { api } from "@/src/lib/api";
+import { api, mediaUri } from "@/src/lib/api";
+import { pickAndUploadImage } from "@/src/lib/upload";
+import { Image } from "expo-image";
 import { Poi } from "@/src/lib/queries";
 import { downloadAuthedFile, uploadAuthedFile } from "@/src/lib/adminFiles";
 
@@ -30,6 +32,22 @@ export default function AdminMapPois() {
   const [editing, setEditing] = useState<Partial<Poi> | null>(null);
   const [busy, setBusy] = useState(false);
   const [io, setIo] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const uploadPhoto = async () => {
+    setUploading(true);
+    try {
+      const url = await pickAndUploadImage();
+      if (url) {
+        setEditing((e) => ({ ...e, image_url: url }));
+        toast.show("Foto caricata: ricordati di salvare", "success");
+      }
+    } catch (e: any) {
+      toast.show(e?.response?.data?.detail || e?.message || "Errore caricamento", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !token) router.replace("/admin/login");
@@ -244,6 +262,8 @@ export default function AdminMapPois() {
               <Field value={editing?.ticket_url || ""} onChangeText={(v) => setEditing((e) => ({ ...e, ticket_url: v }))} placeholder="Link biglietti (https://...)" icon="ticket-confirmation-outline" autoCapitalize="none" testID="f-ticket" />
               <Field value={editing?.maps_url || ""} onChangeText={(v) => setEditing((e) => ({ ...e, maps_url: v }))} placeholder="Link Google Maps indicazioni" icon="directions" autoCapitalize="none" testID="f-maps" />
               <Field value={editing?.image_url || ""} onChangeText={(v) => setEditing((e) => ({ ...e, image_url: v }))} placeholder="Link foto (https://...)" icon="image-outline" autoCapitalize="none" testID="f-image" />
+              {editing?.image_url ? <Image source={{ uri: mediaUri(editing.image_url) }} style={s.preview} contentFit="cover" testID="f-image-preview" /> : null}
+              <Button testID="f-image-upload" label={editing?.image_url ? "Cambia foto" : "Carica foto dal telefono"} icon="image-plus" variant="outline" onPress={uploadPhoto} loading={uploading} />
               <Button testID="poi-save" label="Salva attrazione" icon="content-save" onPress={save} loading={busy} />
             </KeyboardAwareScrollView>
           </Pressable>
@@ -281,4 +301,5 @@ const useStyles = makeStyles((c) => ({
   sheetTitle: { color: c.onSurface, fontSize: 20, fontFamily: fonts.heading, marginBottom: 4 },
   row2: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
   tip: { color: c.muted, fontSize: 11, fontFamily: fonts.body, marginTop: -2 },
+  preview: { width: "100%", height: 160, borderRadius: radius.md, backgroundColor: c.surfaceTertiary },
 }));

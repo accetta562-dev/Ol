@@ -283,6 +283,16 @@ def _fetch_image(url: str):
             print(f"[itinerary_pdf] data URL decode failed: {e}")
             _IMG_CACHE[url] = None
             return None
+    if url.startswith("/api/files/"):
+        try:
+            import object_storage
+            content, _ct = object_storage.get_object(url[len("/api/files/"):])
+            _IMG_CACHE[url] = io.BytesIO(content)
+            return _IMG_CACHE[url]
+        except Exception as e:
+            print(f"[itinerary_pdf] storage image failed: {e}")
+            _IMG_CACHE[url] = None
+            return None
     # HTTP(S) URLs
     try:
         r = requests.get(

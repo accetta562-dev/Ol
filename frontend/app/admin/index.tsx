@@ -64,7 +64,8 @@ export default function AdminDashboard() {
       tiles: [
         { icon: "comment-question-outline", label: "Domande ospiti", desc: "Messaggi ricevuti", route: "/admin/questions" },
         { icon: "frequently-asked-questions", label: "FAQ", desc: "Domande frequenti", route: "/admin/faqs" },
-        { icon: "robot-happy-outline", label: "Carmelo IA", desc: "Assistente itinerari", route: "/(guest)/itineraries" },
+        { icon: "robot-happy-outline", label: "Carmelo IA", desc: "Chat, itinerari, PDF, adatta file", route: "/admin/carmelo" },
+        { icon: "book-open-page-variant-outline", label: "Itinerari pronti", desc: "Libreria pubblica + PDF", route: "/admin/itineraries" },
       ],
     },
     {
